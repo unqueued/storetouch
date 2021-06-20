@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use File::Find;
+use Data::Dumper;
+use POSIX qw( strftime );
+
+find(sub {
+    my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
+        $atime,$mtime,$ctime,$blksize,$blocks)
+           = lstat;
+    
+    $mtime = timestamp_to_gmtime($mtime);
+
+    my $file = $File::Find::name;
+    $file = "\Q$file\E";
+
+    if($file !~ /.git/) {
+    	print "touch -h -t $mtime $file\n";
+    }
+
+}, '.');
+
+# Convert to format that date will accept
+sub timestamp_to_gmtime {
+    my ($timestamp) = @_;
+    my @t = localtime($timestamp);
+    return strftime("%Y%m%d%H%M.%S", @t);
+}
+
+
