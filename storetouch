@@ -2,32 +2,62 @@
 
 use strict;
 use warnings;
-
+use 5.010;
 use File::Find;
 use Data::Dumper;
 use POSIX qw( strftime );
+use Getopt::Long qw(GetOptions);
 
-find(sub {
+my $debug;
+my $output = ".";
+
+my @files;
+
+GetOptions(
+    'debug' => \$debug,
+    'output=s' => \$output,
+    'help' => sub { showHelp(0) },
+) or showHelp(1);
+
+sub showHelp {
+    my $exitval = defined($_) ? $_ : 0;
+    print <<EOF;
+$0 [-h|--help] [--version] [-d|--debug] [-o|--output <FILE>] [DIR]...
+    --help, -h          : Print this help, then exit
+    --version           : Print the script version, then exit
+    --output            : Specify file to output script to, default is STDOUT
+EOF
+    exit $exitval;
+}
+
+findFiles(!@ARGV ? (".") : @ARGV);
+
+sub findFiles {find sub {push @files, $File::Find::name}, @_}
+
+foreach(@files) {
+
+    /.git/ && next;
+    !lstat && next;
+
     my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
         $atime,$mtime,$ctime,$blksize,$blocks)
            = lstat;
+
+    s/\\/\\\\/g;
+    s/\'/\\'/g;
+
+    s/\x07/\\a/g;
+    s/\x08/\\b/g;
+    s/\x09/\\t/g;
+    s/\x0A/\\n/g;
+    s/\x0B/\\v/g;
+    s/\x0C/\\f/g;
+    s/\x0D/\\r/g;
+
+    s/([\x00-\x1F\x7F])/'\x'.sprintf("%02X", ord($1))/eg;
+
+    s/(.*)/\$\'$1'/;
     
-    $mtime = timestamp_to_gmtime($mtime);
+    print "touch -ht ". strftime("%Y%m%d%H%M.%S", localtime($mtime)). " $_\n";
 
-    my $file = $File::Find::name;
-    $file = "\Q$file\E";
-
-    if($file !~ /.git/) {
-    	print "touch -h -t $mtime $file\n";
-    }
-
-}, '.');
-
-# Convert to format that date will accept
-sub timestamp_to_gmtime {
-    my ($timestamp) = @_;
-    my @t = localtime($timestamp);
-    return strftime("%Y%m%d%H%M.%S", @t);
 }
-
-
