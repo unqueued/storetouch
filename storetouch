@@ -36,7 +36,7 @@ sub findFiles {find sub {push @files, $File::Find::name}, @_}
 
 foreach(@files) {
 
-    /.git/ && next;
+    /\.git(\/.*)?$/ && next;
     !lstat && next;
 
     my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
